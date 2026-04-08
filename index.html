@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="보듬교육학원 성적 결과 생성기 - A4 PDF 자동 생성">
+<meta name="keywords" content="성적, 성적표, PDF, 교육">
+<meta name="theme-color" content="#80B042">
+<meta property="og:title" content="보듬교육학원 성적 결과 생성기">
+<meta property="og:description" content="A4 성적 결과 PDF를 자동으로 생성합니다">
+<meta property="og:type" content="website">
+<title>보듬교육학원 성적 결과 생성기</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard Variable',sans-serif;background:#e8e8e8}
+
+/* ── 입력 UI ── */
+.input-panel{max-width:700px;margin:30px auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 20px rgba(0,0,0,0.08)}
+.input-panel h1{font-size:22px;font-weight:900;margin-bottom:4px}
+.input-panel .sub{font-size:13px;color:#888;margin-bottom:24px}
+.row{display:flex;gap:12px;margin-bottom:16px;align-items:center}
+.row label{font-weight:700;font-size:14px;white-space:nowrap}
+.row select,.row input{padding:8px 12px;border:1.5px solid #ddd;border-radius:6px;font-size:14px;font-family:inherit}
+textarea{width:100%;height:320px;border:1.5px solid #ddd;border-radius:8px;padding:14px;font-size:13px;font-family:'Pretendard Variable',monospace;line-height:1.7;resize:vertical}
+textarea:focus{outline:none;border-color:#80B042}
+.btn-row{display:flex;gap:10px;margin-top:16px}
+.btn{padding:12px 28px;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-green{background:#80B042;color:#fff}.btn-green:hover{background:#6a9636}
+.btn-outline{background:#fff;color:#333;border:1.5px solid #ddd}.btn-outline:hover{border-color:#80B042;color:#80B042}
+.btn-red{background:#e74c3c;color:#fff}.btn-red:hover{background:#c0392b}
+.format-help{margin-top:18px;padding:16px;background:#f8f9f5;border-radius:8px;font-size:12px;color:#666;line-height:1.8}
+.format-help code{background:#e8e8e8;padding:2px 6px;border-radius:3px;font-size:11px}
+.stats{margin-top:12px;padding:12px 16px;background:#f0f5e8;border-radius:8px;font-size:13px;color:#4D8900;font-weight:600}
+
+/* ── A4 페이지 ── */
+.pages-wrap{display:flex;flex-direction:column;align-items:center;gap:24px;padding:30px 0}
+.a4{position:relative;width:595px;height:842px;background:#F3F4ED;overflow:hidden;flex-shrink:0;box-shadow:0 2px 16px rgba(0,0,0,0.15)}
+.title-area{position:absolute;top:47px;left:0;width:100%;text-align:center}
+.t-year{font-weight:900;font-size:50px;line-height:55px;color:#000}
+.t-main{font-weight:900;font-size:50px;line-height:55px;color:#80B042}
+.t-sub{margin-top:8px;font-weight:800;font-size:28px;line-height:40px;color:#000;letter-spacing:2px}
+
+.card{position:absolute;width:159px;height:178px}
+.card-body{position:absolute;width:159px;height:135px;top:0;left:0;background:#FFF;border-radius:5px}
+.c-school{position:absolute;width:145px;top:25px;left:50%;transform:translateX(-50%);font-weight:800;font-size:15px;line-height:15px;text-align:center;color:#4D8900}
+.c-score{position:absolute;width:148px;top:56px;left:50%;transform:translateX(-50%);font-weight:800;font-size:20px;line-height:20px;text-align:center;color:#000}
+.c-subject{position:absolute;width:145px;top:89px;left:50%;transform:translateX(-50%);font-weight:800;font-size:15px;line-height:15px;text-align:center;color:#4D8900}
+.c-extra{position:absolute;width:145px;top:110px;left:50%;transform:translateX(-50%);font-weight:800;font-size:11px;line-height:13px;text-align:center;color:#4D8900}
+.card-ft{position:absolute;width:159px;height:37px;top:141px;left:0;background:#80B042;border-radius:5px;display:flex;align-items:center;justify-content:center}
+.c-name{font-weight:800;font-size:15px;line-height:15px;text-align:center;color:#FFF}
+
+/* ── 인쇄 ── */
+@media print{
+  .input-panel,.btn-row-top,.no-print{display:none!important}
+  body{background:#fff!important}
+  .pages-wrap{padding:0!important;gap:0!important}
+  .a4{box-shadow:none!important;page-break-after:always}
+  @page{size:595px 842px;margin:0}
+}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+// ═══════════════════════════════════════
+//  DATA & CONFIG
+// ═══════════════════════════════════════
+const COLS = [44, 218, 392];
+const FY = 226, CY = 31, GAP = 195;
+
+const DEFAULT_DATA = `영어 과천여고1 ㅈㅇㄹ 전교 1등 (100점·1등급)
+---
+수학 과천여고1 ㅈㅇㄹ 전교 3등
+---
+수학 과천여고2 ㅈㅇㅇ 100점 (1등급)
+---
+영어 경화여고1 ㅇㅇㅅ 100점
+---
+영어 과천중앙고1 ㅇㄷㅇ 100점
+---
+영어 과천중앙고1 ㅊㅇㅇ 100점
+---
+영어 과천중앙고1 ㅇㄱㅁ 100점
+---
+수학 과천중3 ㅇㄱㅇ 100점
+---
+수학 과천중3 ㅅㅎㅈ 100점
+---
+수학 과천중3 ㅅㅎㅇ 100점
+---
+수학 과천중2 ㅇㄷㅇ 100점
+---
+수학 과천중2 ㄱㅈㅎ 100점
+---
+수학 과천중2 ㅎㅈㅇ 100점
+---
+수학 과천중2 ㅅㅈㅎ 100점
+---
+수학 문원중3 ㅇㄱㅇ 100점
+---
+수학 문원중3 ㅇㄷㅇ 100점
+---
+수학 문원중3 ㅎㅈㅇ 100점
+---
+수학 문원중 ㅇㄷㅇ 100점
+---
+영어 과천중3 ㅅㅊㅎ 100점
+---
+영어 과천중3 ㅇㅈㅅ 100점
+---
+영어 과천중3 ㅅㅎㅇ 100점
+---
+영어 과천중3 ㅂㅅㅇ 100점
+---
+영어 과천중2 ㅇㅇㅁ 100점
+---
+영어 문원중3 ㅇㄱㅇ 100점
+---
+영어 문원중2 ㅅㅁㅈ 100점
+---
+영어 과천중앙고1 ㅇㅇㅊ 1등급
+---
+영어 과천중앙고1 ㅊㅎㅇ 1등급
+---
+영어 과천여고1 ㅅㅅㅎ 1등급
+---
+영어 과천고1 ㄱㅇㅅ 1등급
+---
+영어 과천중앙고2 ㄱㅊㅇ 1등급
+---
+영어 과천중앙고1 ㅈㅎㅈ 99점 (전교 12등)
+---
+영어 과천중앙고1 ㅈㅊㅇ 99점
+---
+영어 과천중2 ㅇㄷㅇ 97점
+---
+영어 문원중2 ㅂㅊㅇ 96점
+---
+영어 과천중2 ㅂㅈㅇ 95점
+---
+영어 문원중3 ㅇㄱㅇ 95점
+---
+영어 문원중2 ㅈㅇㅈ 95점
+---
+영어 과천여고2 ㅇㄱㅇ 94점
+---
+영어 과천중2 ㅇㄷㅇ 90점
+---
+영어 과천중앙고2 ㄱㅇㄷ 2등급
+---
+영어 과천중앙고1 ㅇㅅㅇ 2등급
+---
+영어 과천외고1 영어과 ㅊㅇㅂ 50점 상승
+---
+영어 문원중2 ㅂㅎㅇ 50점 상승
+---
+수학(확통) 과천고3 *ㅁ* 40점 상승
+---
+영어 문원중3 ㄱㅈㅎ 34점 상승
+---
+수학 과천여고1 ㅎㅅㅇ 30점 상승
+---
+국어 과천여고1 ㅎㅅㅇ 25점 상승
+---
+영어 과천외고1 ㅇㄹㅎ 25점 상승
+---
+영어 과천고1 ㅈㄴㄷ 25점 상승
+---
+수학 과천여고1 ㅇㅅㅇ 25점 상승
+---
+영어 과천여고1 ㄱㄱㅁ 23점 상승
+---
+수학 과천중3 ㅅㄷㅎ 23점 상승
+---
+수학 과천여고1 ㄱㅅㅇ 22점 상승
+---
+영어 과천외고1 일본어과 ㅇㅇㅅ 20점 상승
+---
+국어 과천여고1 ㅇㅅㅇ 20점 상승
+---
+국어 과천여고1 ㄱㅅㅇ 20점 상승
+---
+수학 과천외고1 ㅈㅇㅅ 20점 상승
+---
+수학 과천중2 ㅂㅈㅇ 20점 상승
+---
+영어 과천외고1 영어과 ㅇㅈㅎ 15점 상승
+---
+영어 과천여고1 ㅇㅅㅇ 12.5점 상승
+---
+영어 과천여고1 ㅇㅅㅇ 10.5점 상승
+---
+수학 과천고1 ㅎㅅㅈ 11점 상승
+---
+영어 문원중3 ㄱㅁㄱ 11점 상승`;
+
+// ═══════════════════════════════════════
+//  PARSER
+// ═══════════════════════════════════════
+function parseData(raw) {
+  return raw.split('---').map(s => s.trim()).filter(Boolean).map(line => {
+    let extra = '';
+    const pm = line.match(/\(([^)]+)\)/);
+    if (pm) { extra = pm[1]; line = line.replace(/\([^)]+\)/, '').trim(); }
+
+    const subs = ['수학(확통)','수학','영어','국어','과학','사회','한국사'];
+    let subj = '';
+    for (const s of subs) {
+      if (line.startsWith(s + ' ')) { subj = s; line = line.slice(s.length).trim(); break; }
+    }
+
+    const tk = line.split(/\s+/);
+    let ni = -1;
+    for (let i = 0; i < tk.length; i++) {
+      if (/^[ㄱ-ㅎ*]{2,5}$/.test(tk[i])) { ni = i; break; }
+    }
+    if (ni === -1) return null;
+
+    return {
+      subject: subj,
+      school: tk.slice(0, ni).join(' '),
+      name: tk[ni],
+      score: tk.slice(ni + 1).join(' '),
+      extra
+    };
+  }).filter(Boolean);
+}
+
+// ═══════════════════════════════════════
+//  SORTER
+// ═══════════════════════════════════════
+function sortKey(e) {
+  const s = e.score;
+  const rm = s.match(/전교\s*(\d+)\s*등/);
+  if (rm) { const r = +rm[1]; return r <= 5 ? [0, r] : [3, r]; }
+  if (/100점/.test(s)) return [1, 0];
+  if (/1등급/.test(s)) return [2, 0];
+  const sm = s.match(/([\d.]+)점(?!\s*상승)/);
+  if (sm) { const p = parseFloat(sm[1]); return [4, 100 - p]; }
+  if (/2등급/.test(s)) return [5, 0];
+  if (/3등급/.test(s)) return [5.5, 0];
+  const um = s.match(/([\d.]+)점\s*상승/);
+  if (um) return [6, 100 - parseFloat(um[1])];
+  return [7, 0];
+}
+
+function sortEntries(arr) {
+  return [...arr].sort((a, b) => {
+    const ka = sortKey(a), kb = sortKey(b);
+    return ka[0] !== kb[0] ? ka[0] - kb[0] : ka[1] - kb[1];
+  });
+}
+
+// ═══════════════════════════════════════
+//  PAGINATOR
+// ═══════════════════════════════════════
+function paginate(arr) {
+  const pages = []; let i = 0, p = 0;
+  while (i < arr.length) {
+    const n = p === 0 ? 9 : 12;
+    pages.push({ first: p === 0, items: arr.slice(i, i + n) });
+    i += n; p++;
+  }
+  return pages;
+}
+
+// ═══════════════════════════════════════
+//  RENDERER
+// ═══════════════════════════════════════
+let currentYear = '2022';
+let currentPages = null;
+
+function cardHTML(d, x, y) {
+  return `<div class="card" style="left:${x}px;top:${y}px">
+    <div class="card-body">
+      <div class="c-school">${d.school}</div>
+      <div class="c-score">${d.score}</div>
+      <div class="c-subject">${d.subject}</div>
+      ${d.extra ? `<div class="c-extra">${d.extra}</div>` : ''}
+    </div>
+    <div class="card-ft"><span class="c-name">${d.name}</span></div>
+  </div>`;
+}
+
+function renderPages(pages, year) {
+  let html = '';
+  pages.forEach(pg => {
+    const sy = pg.first ? FY : CY;
+    let inner = '';
+    if (pg.first) {
+      inner += `<div class="title-area">
+        <div class="t-year">${year}년</div>
+        <div class="t-main">내신 성적 결과</div>
+        <div class="t-sub">보듬교육학원</div>
+      </div>`;
+    }
+    pg.items.forEach((item, idx) => {
+      const r = Math.floor(idx / 3), c = idx % 3;
+      inner += cardHTML(item, COLS[c], sy + r * GAP);
+    });
+    html += `<div class="a4">${inner}</div>`;
+  });
+  return html;
+}
+
+function renderApp() {
+  const app = document.getElementById('app');
+
+  if (currentPages) {
+    // ── Preview Mode ──
+    const pagesHTML = renderPages(currentPages, currentYear);
+    const totalCards = currentPages.reduce((s, p) => s + p.items.length, 0);
+    app.innerHTML = `
+      <div class="no-print" style="text-align:center;padding:20px">
+        <div class="btn-row-top" style="display:inline-flex;gap:10px">
+          <button class="btn btn-outline" onclick="goBack()">← 입력으로 돌아가기</button>
+          <button class="btn btn-green" onclick="window.print()">🖨️ PDF 저장 (인쇄)</button>
+        </div>
+        <div style="margin-top:8px;font-size:13px;color:#888">총 ${totalCards}명 · ${currentPages.length}페이지 | 인쇄 → "PDF로 저장" 선택</div>
+      </div>
+      <div class="pages-wrap">${pagesHTML}</div>
+    `;
+  } else {
+    // ── Input Mode ──
+    app.innerHTML = `
+      <div class="input-panel">
+        <h1>📋 보듬교육학원 성적 결과 생성기</h1>
+        <p class="sub">데이터를 입력하면 A4 PDF를 자동 생성합니다</p>
+
+        <div class="row">
+          <label>연도</label>
+          <select id="yearSel">
+            <option value="2022">2022년</option>
+            <option value="2023">2023년</option>
+            <option value="2024">2024년</option>
+            <option value="2025">2025년</option>
+            <option value="2026">2026년</option>
+          </select>
+        </div>
+
+        <label style="font-weight:700;font-size:14px;display:block;margin-bottom:8px">성적 데이터</label>
+        <textarea id="dataInput">${DEFAULT_DATA}</textarea>
+
+        <div id="statsArea"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="generate()">✅ 생성하기</button>
+          <button class="btn btn-outline" onclick="preview()">👁️ 미리보기</button>
+          <button class="btn btn-outline" onclick="clearData()">🗑️ 초기화</button>
+        </div>
+
+        <div class="format-help">
+          <strong>📝 입력 형식</strong><br>
+          각 항목을 <code>---</code> 로 구분합니다.<br><br>
+          <code>과목 학교 초성 점수결과</code><br><br>
+          <strong>예시:</strong><br>
+          <code>영어 과천여고1 ㅈㅇㄹ 100점</code><br>
+          <code>수학 과천중앙고1 ㅈㅎㅈ 1등급</code><br>
+          <code>영어 과천여고1 ㅈㅇㄹ 전교 1등 (100점·1등급)</code> ← 괄호 안은 보조 정보<br>
+          <code>영어 과천외고1 영어과 ㅊㅇㅂ 50점 상승</code><br>
+          <code>수학(확통) 과천고3 *ㅁ* 40점 상승</code><br><br>
+          <strong>정렬 순서 (자동):</strong> 전교5등이내 → 100점 → 1등급 → 전교5등이후 → 99→98→...→90 → 2등급 → 점수상승(높은순)
+        </div>
+      </div>
+    `;
+
+    document.getElementById('yearSel').value = currentYear;
+    updateStats();
+  }
+}
+
+function updateStats() {
+  const ta = document.getElementById('dataInput');
+  if (!ta) return;
+  const parsed = parseData(ta.value);
+  const area = document.getElementById('statsArea');
+  if (parsed.length > 0) {
+    const h100 = parsed.filter(e => e.score.includes('100점')).length;
+    const g1 = parsed.filter(e => e.score.includes('1등급')).length;
+    const up = parsed.filter(e => e.score.includes('상승')).length;
+    const rank = parsed.filter(e => e.score.includes('전교')).length;
+    area.innerHTML = `<div class="stats">파싱 완료: 총 ${parsed.length}명 | 100점 ${h100}명 · 1등급 ${g1}명 · 전교등수 ${rank}명 · 점수상승 ${up}명</div>`;
+  } else {
+    area.innerHTML = `<div class="stats" style="background:#fde8e8;color:#c0392b">⚠️ 파싱된 데이터가 없습니다. 형식을 확인해주세요.</div>`;
+  }
+}
+
+function generate() {
+  currentYear = document.getElementById('yearSel').value;
+  const raw = document.getElementById('dataInput').value;
+  const parsed = parseData(raw);
+  const sorted = sortEntries(parsed);
+  currentPages = paginate(sorted);
+  renderApp();
+}
+
+function preview() {
+  generate();
+}
+
+function goBack() {
+  currentPages = null;
+  renderApp();
+}
+
+function clearData() {
+  currentPages = null;
+  renderApp();
+  setTimeout(() => { document.getElementById('dataInput').value = ''; updateStats(); }, 10);
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  renderApp();
+  // Live stats update
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'dataInput') updateStats();
+  });
+});
+</script>
+</body>
+</html>
