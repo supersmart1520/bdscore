@@ -1,6 +1,6 @@
 {
   "name": "bodum-score-generator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "보듬교육학원 성적 결과 생성기 - A4 PDF 자동 생성 도구",
   "main": "index.html",
   "scripts": {
