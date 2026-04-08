@@ -2,23 +2,17 @@
   "buildCommand": "",
   "installCommand": "",
   "framework": "static",
-  "outputDirectory": ".",
-  "devCommand": "python -m http.server 3000",
   "headers": [
     {
       "source": "/.*",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=3600, s-maxage=3600"
+          "value": "public, max-age=3600"
         },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
         }
       ]
     }
