@@ -14,8 +14,5 @@
     "보듬교육학원"
   ],
   "author": "supersmart1520",
-  "license": "MIT",
-  "engines": {
-    "node": ">=16.0.0"
-  }
+  "license": "MIT"
 }
